@@ -1,0 +1,27 @@
+{
+	"name": "aws-lambda-typescript-template",
+	"version": "1.0.0",
+	"description": "Template for developing and deploying AWS Lambda functions in Typescript",
+	"main": "app.js",
+	"scripts": {
+		"build": "esbuild src/app.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=build/app.js",
+		"tf-init": "terraform init",
+		"tf-validate": "terraform validate"
+	},
+	"keywords": [
+		"template",
+		"aws",
+		"lambda",
+		"terraform"
+	],
+	"author": "Stefan Weber",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/aws-lambda": "^8.10.110",
+		"@types/node": "^18.13.0",
+		"esbuild": "^0.17.6",
+		"prettier": "^2.8.4",
+		"ts-node": "^10.9.1",
+		"typescript": "^4.9.5"
+	}
+}

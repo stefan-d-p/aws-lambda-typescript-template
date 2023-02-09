@@ -13,21 +13,64 @@ provider "aws" {
 
 }
 
-resource "aws_iam_role" "lambda-template-role" {
-  name               = "aws_lambda_template_role"
-  assume_role_policy = file("${path.module}/aws/lambda_role_iam_trustpolicy.json")
+variable "lambda-function-name" {
+  type = string
+  description = "Name of AWS Lambda Function"
 }
 
-resource "aws_iam_policy" "lambda-template-policy" {
-  name        = "aws_lambda_template_policy"
+resource "aws_iam_role" "lambda-execution-role" {
+  name               = "lambda-${var.lambda-function-name}"
+  assume_role_policy = jsonencode(
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": "sts:AssumeRole",
+          "Principal": {
+            "Service": "lambda.amazonaws.com"
+          }
+        }
+      ]
+    }
+  )
+}
+
+resource "aws_iam_policy" "lambda-execution-role-policy" {
+  name        = "lambda-${var.lambda-function-name}"
   path        = "/"
   description = "AWS IAM Policy granting permission to Lambda Function Role"
-  policy      = file("${path.module}/aws/lambda_role_iam_policy.json")
+  policy      = jsonencode(
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": "logs:CreateLogGroup",
+          "Resource": "arn:aws:logs:::*"
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ],
+          "Resource": [
+            "arn:aws:logs:::log-group:/aws/lambda/*"
+          ]
+        }
+      ]
+    }
+  )
 }
 
 resource "aws_iam_role_policy_attachment" "attach_lambda_policy_to_iam_lambda_role" {
-  role       = aws_iam_role.lambda-template-role.name
-  policy_arn = aws_iam_policy.lambda-template-policy.arn
+  role       = aws_iam_role.lambda-execution-role.name
+  policy_arn = aws_iam_policy.lambda-execution-role-policy.arn
+  depends_on = [
+    aws_iam_policy.lambda-execution-role-policy,
+    aws_iam_role.lambda-execution-role
+  ]
 }
 
 data "archive_file" "lambda_function_zip" {
@@ -38,10 +81,13 @@ data "archive_file" "lambda_function_zip" {
 }
 
 resource "aws_lambda_function" "lambda_function" {
-  function_name = "tf_lambda"
-  role = aws_iam_role.lambda-template-role.arn
+  function_name = var.lambda-function-name
+  role = aws_iam_role.lambda-execution-role.arn
   handler = "app.lambdaHandler"
   filename = data.archive_file.lambda_function_zip.output_path
   source_code_hash = data.archive_file.lambda_function_zip.output_base64sha256
-  runtime = "nodejs16.x" 
+  runtime = "nodejs18.x" # Valid runtime values: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
+  depends_on = [
+    aws_iam_role_policy_attachment.attach_lambda_policy_to_iam_lambda_role
+  ]
 }

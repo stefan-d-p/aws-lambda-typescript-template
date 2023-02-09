@@ -6,7 +6,9 @@
 	"scripts": {
 		"build": "esbuild src/app.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=build/app.js",
 		"tf-init": "terraform init",
-		"tf-validate": "terraform validate"
+		"tf-validate": "terraform validate",
+		"tf-apply": "terraform apply -var-file=settings.tfvars",
+		"tf-destroy": "terraform destroy -var-file=settings.tfvars"
 	},
 	"keywords": [
 		"template",

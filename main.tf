@@ -18,50 +18,46 @@ variable "lambda-function-name" {
   description = "Name of AWS Lambda Function"
 }
 
+resource "aws_cloudwatch_log_group" "cloudwatch-lambda-logroup" {
+  name = "/aws/lambda/${var.lambda-function-name}"
+  retention_in_days = 14
+}
+
+
+data "aws_iam_policy_document" "lambda-role-trust-policy-doc" {
+  version = "2012-10-17"
+  statement {
+    effect = "Allow"
+    actions = [ "sts:AssumeRole" ]
+    principals {
+      type = "Service"
+      identifiers = [ "lambda.amazonaws.com" ]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "lambda-role-policy-doc" {
+  version = "2012-10-17"
+  statement {
+    effect = "Allow"
+    actions = [ "logs:CreateLogStream", "logs:PutLogEvents" ]
+    resources = [ "${aws_cloudwatch_log_group.cloudwatch-lambda-logroup.arn}:*" ]
+  }
+  depends_on = [
+    aws_cloudwatch_log_group.cloudwatch-lambda-logroup
+  ]
+}
+
 resource "aws_iam_role" "lambda-execution-role" {
   name               = "lambda-${var.lambda-function-name}"
-  assume_role_policy = jsonencode(
-    {
-      "Version": "2012-10-17",
-      "Statement": [
-        {
-          "Effect": "Allow",
-          "Action": "sts:AssumeRole",
-          "Principal": {
-            "Service": "lambda.amazonaws.com"
-          }
-        }
-      ]
-    }
-  )
+  assume_role_policy = data.aws_iam_policy_document.lambda-role-trust-policy-doc.json 
 }
 
 resource "aws_iam_policy" "lambda-execution-role-policy" {
   name        = "lambda-${var.lambda-function-name}"
   path        = "/"
   description = "AWS IAM Policy granting permission to Lambda Function Role"
-  policy      = jsonencode(
-    {
-      "Version": "2012-10-17",
-      "Statement": [
-        {
-          "Effect": "Allow",
-          "Action": "logs:CreateLogGroup",
-          "Resource": "arn:aws:logs:::*"
-        },
-        {
-          "Effect": "Allow",
-          "Action": [
-            "logs:CreateLogStream",
-            "logs:PutLogEvents"
-          ],
-          "Resource": [
-            "arn:aws:logs:::log-group:/aws/lambda/*"
-          ]
-        }
-      ]
-    }
-  )
+  policy      = data.aws_iam_policy_document.lambda-role-policy-doc.json
 }
 
 resource "aws_iam_role_policy_attachment" "attach_lambda_policy_to_iam_lambda_role" {
@@ -72,6 +68,7 @@ resource "aws_iam_role_policy_attachment" "attach_lambda_policy_to_iam_lambda_ro
     aws_iam_role.lambda-execution-role
   ]
 }
+
 
 data "archive_file" "lambda_function_zip" {
   type = "zip"

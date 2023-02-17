@@ -1,6 +1,14 @@
 import {} from 'aws-lambda';
 
-export const lambdaHandler = async (): Promise<string> => {
-	console.error('Hier ein Fehler');
-	return 'Hello World!';
+interface In {
+	name: string;
+}
+
+interface Out {
+	greeting: string;
+}
+
+export const lambdaHandler = async (input: In): Promise<Out> => {
+	let result: Out = { greeting: `Hello ${input.name}` };
+	return result;
 };
